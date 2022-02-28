@@ -1,0 +1,195 @@
+package com.crs.lt.controller;
+
+import javax.ws.rs.Path;
+
+import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
+
+import java.sql.SQLException;
+import java.util.List;
+
+import javax.ws.rs.*;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.crs.lt.bean.Course;
+import com.crs.lt.bean.Grade;
+import com.crs.lt.bean.GradeCard;
+import com.crs.lt.business.ProfessorInterface;
+import com.crs.lt.business.ProfessorService;
+import com.crs.lt.business.RegistrationInterface;
+import com.crs.lt.business.RegistrationService;
+import com.crs.lt.business.UserInterface;
+import com.crs.lt.business.UserService;
+import com.crs.lt.dao.AdminDoaOperation;
+import com.crs.lt.exceptions.CourseNotFoundException;
+import com.crs.lt.exceptions.SeatNotAvailableException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+@RestController
+@CrossOrigin
+//@Path("/student")
+public class StudentRestApi {
+	
+	@Autowired
+	RegistrationService registrationInterface;
+	//RegistrationInterface registrationInterface = new RegistrationService();
+	ProfessorInterface professorInterface = new ProfessorService();
+	UserInterface userInterface = new UserService();
+	
+	//ObjectMapper mapper = new ObjectMapper();
+	
+	private static Logger logger =Logger.getLogger(StudentRestApi.class);
+	
+	
+	 @RequestMapping(produces = MediaType.APPLICATION_JSON, method = RequestMethod.GET,value = "/courses/{studentId}")
+	@ResponseBody
+	public List<Course> viewCourses(@PathVariable("studentId") String studentId) throws SQLException{
+		//role = userInterface.getRole();
+		 List <Course> courseList = null;
+		 try {
+			 logger.info("In API");
+			 courseList = registrationInterface.viewCourses(studentId);
+		 }
+		catch (SQLException e) {
+			// TODO: handle exception
+			logger.error("Error in viewing courses");
+			e.getMessage();
+		}
+		 
+	        return courseList;
+	    }
+	 
+	
+//	 @RequestMapping(
+//			 produces = MediaType.APPLICATION_JSON, method = RequestMethod.PUT, value = "/addCourse/{courseCode}/{studentId}")
+//		@ResponseBody
+//	    public ResponseEntity addcourse(@PathParam("courseCode") String courseCode,@PathParam("studentId")String studentId) throws SQLException, CourseNotFoundException, SeatNotAvailableException {
+//		 
+//		 List<Course> availableCourseList=registrationInterface.viewCourses(studentId);
+//		 if(availableCourseList==null)
+//				return new ResponseEntity("No COurses found for ID " + studentId, HttpStatus.NOT_FOUND);
+//		 if(registrationInterface.getRegistrationStatus(studentId) == false)
+//				return new ResponseEntity("Pending registration found for ID " + studentId, HttpStatus.OK);
+//	        
+//		 registrationInterface.addCourse(courseCode, studentId, availableCourseList);
+//			return new ResponseEntity("Student registered " + studentId, HttpStatus.OK);
+//
+//	    }
+	 
+
+@RequestMapping(value = "/addCourse/{courseId}/{studentId}", method = RequestMethod.PUT, produces = MediaType.APPLICATION_JSON)
+		public Response addCourse(				
+				@PathParam("courseCode") String courseCode,
+				@PathParam("studentId") String studentId) throws  SQLException, CourseNotFoundException, SeatNotAvailableException{
+			
+
+			if(registrationInterface.getRegistrationStatus(studentId) == false)
+				return Response.status(200).entity("Student course registration is pending").build();
+			
+			List<Course> availCourseList = registrationInterface.viewCourses(studentId);
+			registrationInterface.addCourse(courseCode, studentId, availCourseList);
+			
+			return Response.status(201).entity( "You have successfully added Course : " + courseCode).build();
+			
+
+		}
+
+
+	 @RequestMapping(produces = MediaType.APPLICATION_JSON, method = RequestMethod.DELETE,value = "/dropCourse/{courseCode}/{studentId}")
+		@ResponseBody
+		public Response dropCourse(
+				@PathVariable String courseCode, @PathVariable String studentId) throws SQLException{
+		 System.out.println("Course code" +courseCode);
+		 System.out.println("studentid" +studentId);
+			if(registrationInterface.getRegistrationStatus(studentId) == false)
+				return Response.status(200).entity("Student course registration is pending").build();
+			
+			try{
+				
+				List<Course>registeredCourseList = registrationInterface.viewRegisteredCourses(studentId);
+				System.out.println("Course code" +courseCode);
+				System.out.println("studentid" +studentId);
+				registrationInterface.dropCourse(courseCode, studentId, registeredCourseList);
+				return Response.status(200).entity( "You have successfully dropped Course : " + courseCode).build();
+			}
+			catch(CourseNotFoundException e)
+			{	
+				logger.info(e.getMessage());
+				return Response.status(501).entity("You have not registered for course : " + e.getCourseCode()).build();
+			} 
+			
+		}
+	 
+	
+	 @RequestMapping(produces = MediaType.APPLICATION_JSON, method = RequestMethod.GET,value = "/viewRegisteredCourses/{studentId}")
+		@ResponseBody
+		public List<Course> viewRegisteredCourse(@PathVariable("studentId") String studentId) throws SQLException{
+			
+				try {
+					return registrationInterface.viewRegisteredCourses(studentId);
+				} catch (Exception e) {
+					// TODO: handle exception
+				}
+				return null;
+		}
+	
+	 @RequestMapping(value ="/make_payment/{studentId}", produces = MediaType.APPLICATION_JSON, method = RequestMethod.POST)
+	 public Response makePayment(@PathParam(value = "studentId") String studentId) throws SQLException {
+			// TODO Auto-generated method stub
+			double fee = 0;
+			boolean isRegistered = false;
+			boolean isPaid = false;
+				isRegistered = registrationInterface.getRegistrationStatus(studentId);
+				isPaid = registrationInterface.getPaymentStatus(studentId);
+				if(!isRegistered)
+				{
+					System.out.println("You have not registered yet");
+					return Response.status(200).entity( "You havent registered for the course").build();
+				}
+			
+			if(isRegistered && !isPaid)
+			{
+				try {
+					fee=registrationInterface.calculateFee(studentId);
+					System.out.println("Your total fee  = " + fee);
+					//notificationInterface.sendNotification();
+					System.out.println("Payment Successful by StudentId :" + studentId);
+					registrationInterface.setPaymentStatus(studentId);
+					return Response.status(200).entity( "You have successfully completed the payment").build();
+					
+				}
+				catch (SQLException e) {
+					// TODO: handle exception
+				System.out.println(e.getMessage());
+				return Response.status(501).entity( "Your payment is not sucessfull").build();
+				}
+			
+			}
+			return Response.status(501).entity( "Something Went wrong").build();
+			
+	
+	 }
+	 
+		@GET
+		@Path("/viewGradeCard")
+		@Produces(MediaType.APPLICATION_JSON)
+		public List<Grade> viewGradeCard(
+				@QueryParam("studentId") String studentId) throws SQLException{
+				List<Grade> grade_card = registrationInterface.viewGradeCard(studentId);
+				return grade_card;
+			
+			
+		}
+		
+	
+}

@@ -1,0 +1,18 @@
+package com.crs.lt.mapper;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
+import org.springframework.jdbc.core.RowMapper;
+
+public class RegisteredCourse implements RowMapper<com.crs.lt.bean.RegisteredCourse> {
+
+	@Override
+	public RegisteredCourse mapRow(ResultSet rs, int rowNum) throws SQLException {
+		// TODO Auto-generated method stub
+		RegisteredCourse course = new RegisteredCourse();
+		course.
+		return null;
+	}
+
+}

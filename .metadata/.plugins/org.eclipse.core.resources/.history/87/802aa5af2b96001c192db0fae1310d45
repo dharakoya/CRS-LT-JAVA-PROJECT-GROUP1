@@ -1,0 +1,21 @@
+package com.crs.lt.application;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.ApplicationContext;
+
+import com.crs.lt.dao.AdminDOAInterface;
+import com.crs.lt.dao.AdminDoaOperation;
+import com.crs.lt.dao.EmployeeDAOImpl;
+
+@SpringBootApplication
+public class CrsLtGroup1SpringJdbctemplateApplication {
+
+	public static void main(String[] args) {
+		//SpringApplication.run(CrsLtGroup1SpringJdbctemplateApplication.class, args);
+		 ApplicationContext context=SpringApplication.run(CrsLtGroup1SpringJdbctemplateApplication.class, args);
+		 
+		 AdminDoaOperation adminJDBCTemplate = context.getBean(AdminDoaOperation.class);
+	}
+
+}
